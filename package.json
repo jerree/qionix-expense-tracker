@@ -1,0 +1,19 @@
+{
+  "name": "qionix-expense-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Qionix expense tracker with a Mono test-mode bank connection demo",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "check": "node --check server.js && node --check server/mono.js && node --check public/mono-connect.js && node --check public/accounts-page.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0"
+  }
+}

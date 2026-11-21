@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qionix - Welcome</title>
+    <link rel="icon" type="image/svg+xml" href="qionix-q.svg">
+    <!-- Theme boot: apply the saved theme BEFORE the CSS paints (no white flash) -->
+    <script>
+        (function () {
+            try {
+                if (localStorage.getItem("qionix.theme") === "dark") {
+                    document.documentElement.setAttribute("data-theme", "dark");
+                }
+            } catch (err) { /* storage blocked - stay light */ }
+        })();
+    </script>
+    <link rel="stylesheet" href="auth.css">
+</head>
+<body>
+
+    <main class="auth-shell">
+
+        <!-- ===================================================== -->
+        <!-- LEFT: BRAND PANEL - pitch + product highlights        -->
+        <!-- Hidden on small screens (the form gets a small logo)  -->
+        <!-- ===================================================== -->
+        <section class="auth-brand">
+            <div class="auth-brand-inner">
+                <div class="auth-badge">
+                    <img src="qionix-q.svg" alt="" class="auth-badge-img">
+                </div>
+
+                <div class="auth-brand-copy">
+                    <span class="auth-eyebrow">Qionix · Personal finance</span>
+                    <h1>See where your<br>money really goes.</h1>
+                    <p>One calm place for your accounts, spending and savings - built for everyday clarity.</p>
+
+                    <ul class="auth-points">
+                        <li>Live balance across every account</li>
+                        <li>Monthly reports that make sense</li>
+                        <li>Data stays in this browser</li>
+                    </ul>
+                </div>
+            </div>
+
+            <p class="auth-brand-foot">Demo project · no server, no tracking</p>
+        </section>
+
+        <!-- ===================================================== -->
+        <!-- RIGHT: LOGIN / SIGN UP FORM                           -->
+        <!-- ===================================================== -->
+        <section class="auth-panel">
+            <div class="auth-card" id="auth-card">
+
+                <div class="auth-mini">
+                    <img src="qionix-q.svg" alt="">
+                    <span>ionix</span>
+                </div>
+
+                <div class="auth-head">
+                    <h2 id="auth-title">Welcome back</h2>
+                    <p id="auth-sub">Log in to pick up where you left off.</p>
+                </div>
+
+                <div class="auth-tabs" role="tablist" aria-label="Account access">
+                    <button type="button" class="on" data-mode="login" role="tab" aria-selected="true">Log in</button>
+                    <button type="button" data-mode="signup" role="tab" aria-selected="false">Sign up</button>
+                </div>
+
+                <form id="auth-form" novalidate>
+                    <div class="auth-field" id="name-field" hidden>
+                        <label for="auth-name">Full name</label>
+                        <input id="auth-name" name="name" type="text" maxlength="24" autocomplete="name" placeholder="e.g. Jerree">
+                        <p class="auth-error" id="err-name" hidden></p>
+                    </div>
+
+                    <div class="auth-field">
+                        <label for="auth-email">Email address</label>
+                        <input id="auth-email" name="email" type="email" autocomplete="email" placeholder="you@example.com">
+                        <p class="auth-error" id="err-email" hidden></p>
+                    </div>
+
+                    <div class="auth-field">
+                        <label for="auth-password">Password</label>
+                        <div class="auth-pass-wrap">
+                            <input id="auth-password" name="password" type="password" autocomplete="current-password" placeholder="At least 6 characters">
+                            <button type="button" class="auth-eye" data-target="auth-password" aria-label="Show password">Show</button>
+                        </div>
+                        <p class="auth-error" id="err-password" hidden></p>
+                    </div>
+
+                    <div class="auth-field" id="confirm-field" hidden>
+                        <label for="auth-confirm">Confirm password</label>
+                        <div class="auth-pass-wrap">
+                            <input id="auth-confirm" name="confirm" type="password" autocomplete="new-password" placeholder="Repeat your password">
+                            <button type="button" class="auth-eye" data-target="auth-confirm" aria-label="Show password">Show</button>
+                        </div>
+                        <p class="auth-error" id="err-confirm" hidden></p>
+                    </div>
+
+                    <p class="auth-form-error" id="err-form" hidden></p>
+
+                    <button type="submit" class="auth-submit" id="auth-submit">Log in</button>
+                </form>
+
+                <p class="auth-switch" id="auth-switch">New to Qionix? <button type="button" id="auth-switch-btn" data-mode="signup">Create an account</button></p>
+                <p class="auth-legal">Local demo - your account is saved in this browser only.</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="auth.js"></script>
+</body>
+</html>

@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qionix - Expense Tracker</title>
+    <link rel="icon" type="image/svg+xml" href="qionix-q.svg">
+    <!-- Theme boot: apply the saved theme BEFORE the CSS paints (no white flash).
+         Also moves the old shared preference keys to per-login keys once. -->
+    <script>
+        (function () {
+            try {
+                const session = JSON.parse(localStorage.getItem("qionix.session") || "null");
+                const uid = session && session.userId ? String(session.userId) : "";
+                if (uid) {
+                    const prefs = ["qionix.theme", "qionix.startup", "qionix.currencyCard", "qionix.sidebarCollapsed"];
+                    for (let i = 0; i < prefs.length; i++) {
+                        const legacy = localStorage.getItem(prefs[i]);
+                        if (legacy === null) continue;
+                        if (localStorage.getItem(prefs[i] + "." + uid) === null) {
+                            localStorage.setItem(prefs[i] + "." + uid, legacy);
+                        }
+                        localStorage.removeItem(prefs[i]);
+                    }
+                }
+                if (localStorage.getItem("qionix.theme" + (uid ? "." + uid : "")) === "dark") {
+                    document.documentElement.setAttribute("data-theme", "dark");
+                }
+            } catch (err) { /* storage blocked - stay light */ }
+        })();
+    </script>
+    <!-- Auth gate: without a saved session, open the welcome page instead -->
+    <script>
+        (function () {
+            try {
+                const session = JSON.parse(localStorage.getItem("qionix.session") || "null");
+                if (!session || !session.userId) {
+                    location.replace("auth.html");
+                }
+            } catch (err) { /* storage blocked - let the app open */ }
+        })();
+    </script>
+    <!-- Material Icons - replaces emojis -->
+    <!-- (self-hosted in /fonts so icons work even when Google Fonts is blocked) -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="mono.css">
+</head>
+<body>
+
+    <!-- ========================================================= -->
+    <!-- ===================== TOP NAVIGATION ==================== -->
+    <!-- Fixed header: Logo Qionix + Menu + Record + Jerree       -->
+    <!-- ========================================================= -->
+    <nav class="top-nav">
+        <div class="nav-left">
+            <div class="logo">
+                <img src="qionix-q.svg" class="logo-icon-img" alt="Q">ionix
+            </div>
+        </div>
+        <!-- Centered nav links -->
+        <ul class="nav-links" id="nav-menu">
+            <li class="active"><a href="#">Dashboard</a></li>
+            <li><a href="#accounts">Accounts</a></li>
+            <li><a href="#records">Records</a></li>
+            <li><a href="#analytics">Analytics</a></li>
+        </ul>
+        <div class="nav-right">
+            <button class="btn-record" id="open-modal-btn">+ Record</button>
+            <button class="profile" id="profile-btn" type="button" title="Open settings" aria-label="Open settings">
+                <span class="avatar">J</span>
+                <span>Jerree</span>
+            </button>
+            <button class="nav-burger" id="nav-burger" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="nav-menu">
+                <span class="nav-bars" aria-hidden="true"><i></i><i></i><i></i></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ========================================================= -->
+    <!-- ===================== PAGE LAYOUT ======================= -->
+    <!-- New: left sidebar (accounts) + right main (dashboard)     -->
+    <!-- Sidebar is vertical and sticky (not scrollable)            -->
+    <!-- ========================================================= -->
+    <div class="layout">
+
+        <!-- Hamburger handle: sits on the sidebar edge, slides the Accounts sidebar in / out -->
+        <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Toggle accounts sidebar" aria-controls="accounts-sidebar" aria-expanded="true">
+            <span class="menu-bars" aria-hidden="true"><i></i><i></i><i></i></span>
+        </button>
+
+        <!-- ----------------------------------------------------- -->
+        <!-- LEFT SIDEBAR - ACCOUNTS (VERTICAL, STICKY)            -->
+        <!-- Moved from top bar to left aside to differ from Wallet-->
+        <!-- Sticky so it stays visible while main scrolls         -->
+        <!-- ----------------------------------------------------- -->
+        <aside class="accounts-sidebar" id="accounts-sidebar">
+            <h3 class="sidebar-title">Accounts</h3>
+
+            <!-- Account cards are rendered by renderAccounts() in dashboard.js -->
+
+            <!-- Add new account button (dashed border) - creates dynamic account -->
+            <div class="account-card add-account" id="add-account-btn">
+                + Add Account
+            </div>
+
+        </aside>
+
+        <!-- ----------------------------------------------------- -->
+        <!-- RIGHT MAIN AREA - Period + Dashboard Grid             -->
+        <!-- ----------------------------------------------------- -->
+        <div class="main-area">
+
+            <!-- ===================================================== -->
+            <!-- PERIOD SELECTOR - Calendar like Wallet by BudgetBakers -->
+            <!-- < > arrows move by selected period (month/week/year)    -->
+            <!-- Center box opens dropdown with Custom/Weeks/Months/Years -->
+            <!-- ===================================================== -->
+            <div class="period-bar">
+                <button class="period-arrow" id="period-prev">&lt;</button>
+
+                <div class="period-wrapper">
+                    <button class="period-select" id="period-display">This month</button>
+
+                    <!-- Dropdown calendar - hidden by default -->
+                    <div class="period-dropdown" id="period-dropdown">
+                        <!-- Tabs -->
+                        <div class="period-tabs">
+                            <button class="period-tab active" data-tab="custom">Custom range</button>
+                            <button class="period-tab" data-tab="weeks">Weeks</button>
+                            <button class="period-tab" data-tab="months">Months</button>
+                            <button class="period-tab" data-tab="years">Years</button>
+                        </div>
+
+                        <!-- Tab: Custom range - calendar + quick buttons -->
+                        <div class="period-content active" id="tab-custom">
+                            <div class="calendar-nav">
+                                <button id="custom-prev">&lt;</button>
+                                <span id="custom-month-label">September 2026</span>
+                                <button id="custom-next">&gt;</button>
+                            </div>
+                            <div class="calendar-weekdays">
+                                <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+                            </div>
+                            <div id="custom-calendar-grid" class="calendar-grid"></div>
+                            <div class="quick-buttons">
+                                <button class="quick-btn" data-range="week">This week</button>
+                                <button class="quick-btn" data-range="month">This month</button>
+                                <button class="quick-btn" data-range="year">This year</button>
+                                <button class="quick-btn" data-range="today">Today</button>
+                                <button class="quick-btn" data-range="7days">7 days</button>
+                                <button class="quick-btn" data-range="30days">30 days</button>
+                                <button class="quick-btn" data-range="90days">90 days</button>
+                                <button class="quick-btn" data-range="12months">12 months</button>
+                                <button class="quick-btn" data-range="all">All</button>
+                            </div>
+                        </div>
+
+                        <!-- Tab: Weeks - week selection -->
+                        <div class="period-content" id="tab-weeks">
+                            <div class="calendar-nav">
+                                <button id="weeks-prev">&lt;</button>
+                                <span id="weeks-month-label">September 2026</span>
+                                <button id="weeks-next">&gt;</button>
+                            </div>
+                            <div class="calendar-weekdays">
+                                <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+                            </div>
+                            <div id="weeks-calendar-grid" class="calendar-grid"></div>
+                        </div>
+
+                        <!-- Tab: Months - Jan-Dec grid -->
+                        <div class="period-content" id="tab-months">
+                            <div class="calendar-nav">
+                                <button id="months-prev">&lt;</button>
+                                <span id="months-year-label">2026</span>
+                                <button id="months-next">&gt;</button>
+                            </div>
+                            <div id="months-grid" class="months-grid"></div>
+                        </div>
+
+                        <!-- Tab: Years - 2020-2029 grid -->
+                        <div class="period-content" id="tab-years">
+                            <div class="calendar-nav">
+                                <button id="years-prev">&lt;</button>
+                                <span id="years-range-label">2020 - 2029</span>
+                                <button id="years-next">&gt;</button>
+                            </div>
+                            <div id="years-grid" class="years-grid"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="period-arrow" id="period-next">&gt;</button>
+            </div>
+
+            <!-- Dashboard grid (6 cards) -->
+            <main class="board">
+
+                <!-- CARD 1: DASHBOARD GAUGES -->
+                <section class="board-card">
+                    <div class="card-header">
+                        <h3>Dashboard</h3>
+        
+                    </div>
+                    <div class="gauges">
+                        <!-- CSS gauge: 270deg conic ring, sharp ends, no SVG -->
+                        <div class="gauge-item">
+                            <div class="gauge">
+                                <div class="gauge-needle needle-balance"></div>
+                            </div>
+                            <small>BALANCE</small>
+                            <strong id="balance-amount">28K</strong>
+                            <span class="full-balance">NGN 27,600.00</span>
+                        </div>
+                        <div class="gauge-item">
+                            <div class="gauge">
+                                <div class="gauge-needle needle-cashflow"></div>
+                            </div>
+                            <small>CASH FLOW</small>
+                            <strong id="cashflow-amount">0</strong>
+                        </div>
+                        <div class="gauge-item">
+                            <div class="gauge">
+                                <div class="gauge-needle needle-spending"></div>
+                            </div>
+                            <small>SPENDING</small>
+                            <strong id="expense-amount">-17K</strong>
+                        </div>
+                    </div>
+
+                    <!-- Quick stats under the gauges (filled in by dashboard.js) -->
+                    <div class="gauge-stats">
+                        <div class="stat-tile stat-income">
+                            <span class="stat-icon"><span class="material-icons">south_west</span></span>
+                            <small>Income</small>
+                            <strong id="stat-income">0</strong>
+                        </div>
+                        <div class="stat-tile stat-expense">
+                            <span class="stat-icon"><span class="material-icons">north_east</span></span>
+                            <small>Expenses</small>
+                            <strong id="stat-expense">0</strong>
+                        </div>
+                        <div class="stat-tile stat-savings">
+                            <span class="stat-icon"><span class="material-icons">savings</span></span>
+                            <small>Savings rate</small>
+                            <strong id="stat-savings">&mdash;</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- CARD 2: BALANCE TREND -->
+                <section class="board-card trend-card">
+                    <div class="card-header">
+                        <h3>Balance Trend</h3>
+        
+                    </div>
+                    <div class="card-subtitle">
+                        <div>
+                            <small>This month</small>
+                            <strong id="trend-balance-amount">NGN 0.00</strong>
+                        </div>
+                        <div class="trend-vs">
+                            <small class="vs-label">VS Previous Period</small>
+                            <span class="badge down" id="trend-vs-badge">0%</span>
+                        </div>
+                    </div>
+                    <!-- Interactive chart - hover shows a moving line + value (like Wallet) -->
+                    <div class="trend-chart-wrap">
+                        <div class="trend-yaxis">
+                            <span>32K</span><span>24K</span><span>16K</span><span>8K</span><span>0</span>
+                        </div>
+                        <div class="trend-chart" id="trend-chart">
+                            <!-- Horizontal grid lines -->
+                            <div class="trend-grid"></div>
+                            <!-- SVG area + line -->
+                            <svg class="trend-svg" viewBox="0 0 300 80" preserveAspectRatio="none">
+                                <!-- Area fill under line - default flat on 0 (bottom) when balance is 0 -->
+                                <path class="trend-area" d="M0,80 L300,80 L300,80 L0,80 Z"></path>
+                                <!-- Line on 0 -->
+                                <path class="trend-path" d="M0,80 L300,80"></path>
+                                <!-- Dot that follows the cursor along the line -->
+                            </svg>
+                            <!-- Round dot that follows the cursor (HTML, so it never gets stretched like SVG shapes do) -->
+                            <span class="trend-hover-dot" id="trend-hover-dot"></span>
+                            <!-- Vertical hover line -->
+                            <div class="trend-hover-line" id="trend-hover-line"></div>
+                            <!-- Tooltip -->
+                            <div class="trend-tooltip" id="trend-tooltip">NGN 30,000</div>
+                            <div class="trend-labels">
+                                <span>1 Sep</span><span>5 Sep</span><span>9 Sep</span><span>13 Sep</span><span>17 Sep</span><span>21 Sep</span><span>30 Sep</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- CARD 3: EXPENSES STRUCTURE -->
+                <section class="board-card">
+                    <div class="card-header">
+                        <h3>Expenses Structure</h3>
+        
+                    </div>
+                    <div class="card-subtitle">
+                        <div>
+                            <small>This month</small>
+                            <strong id="expenses-total">NGN 0.00</strong>
+                        </div>
+                        <div class="vs-block">
+                            <small class="vs-label">VS Previous Period</small>
+                            <span class="badge down" id="expenses-vs-badge">0%</span>
+                        </div>
+                    </div>
+                    <div class="donut-wrap">
+                        <div class="donut" id="expenses-donut"></div>
+                        <div class="donut-center" id="expenses-center">No data</div>
+                        <div id="donut-legend-list">
+                            <div class="donut-legend">
+                                <span class="dot"></span> No expenses yet
+                                <span class="legend-val"></span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- CARD 4: LAST RECORDS -->
+                <section class="board-card">
+                    <div class="card-header">
+                        <h3>Last Records</h3>
+        
+                    </div>
+                    <ul id="transaction-list" class="records-list">
+                        <!-- Wallet-style record: icon with check badge, dot + Cash, amount + date on right -->
+                        <li class="record">
+                            <div class="record-icon-wrap">
+                                <div class="record-icon food"><span class="material-icons">restaurant</span></div>
+                                <span class="check-badge">✓</span>
+                            </div>
+                            <div class="record-info">
+                                <strong>Restaurant, fast-food</strong>
+                                <small><span class="dot-account" style="background:#2ec4b6"></span> Cash</small>
+                            </div>
+                            <div class="record-right">
+                                <div class="record-amount expense">-NGN 15,000.00</div>
+                                <small class="record-date">09/07/2026 12:23 PM</small>
+                            </div>
+                            <button class="btn-delete" title="Delete">✕</button>
+                        </li>
+                        <li class="record">
+                            <div class="record-icon-wrap">
+                                <div class="record-icon transfer"><span class="material-icons">swap_horiz</span></div>
+                                <span class="check-badge">✓</span>
+                            </div>
+                            <div class="record-info">
+                                <strong>Transfer, withdraw</strong>
+                                <small><span class="dot-account" style="background:#2ec4b6"></span> Cash</small>
+                            </div>
+                            <div class="record-right">
+                                <div class="record-amount expense">-NGN 3,000.00</div>
+                                <small class="record-date">09/07/2026 12:22 PM</small>
+                            </div>
+                            <button class="btn-delete" title="Delete">✕</button>
+                        </li>
+                        <li class="empty-message">No transactions yet. Click + Record to add one!</li>
+                    </ul>
+                </section>
+
+                <!-- CARD 5: BALANCE BY CURRENCIES -->
+                <!-- Converter: total balance in NGN (main currency) + the same balance in 2 currencies the user picks -->
+                <section class="board-card currency-card">
+                    <div class="card-header">
+                        <h3>Balance by Currencies</h3>
+                        <div class="cur-anchor" id="cur-anchor">
+                            <button type="button" class="cur-gear" id="cur-gear" aria-label="Choose currencies to show" aria-expanded="false" title="Choose currencies">
+                                <span class="material-icons">tune</span>
+                            </button>
+                            <div class="cur-pop" id="cur-pop" hidden>
+                                <p class="cur-pop-title">Show my balance in</p>
+                                <div class="cur-slot">
+                                    <div id="cur-sel-1"></div><input type="hidden" id="cur-val-1">
+                                    <div class="cur-rate"><span id="cur-prefix-1">1 USD =</span><input type="number" id="cur-rate-1" min="0" step="any"><span>NGN</span></div>
+                                </div>
+                                <div class="cur-slot">
+                                    <div id="cur-sel-2"></div><input type="hidden" id="cur-val-2">
+                                    <div class="cur-rate"><span id="cur-prefix-2">1 EUR =</span><input type="number" id="cur-rate-2" min="0" step="any"><span>NGN</span></div>
+                                </div>
+                                <small class="cur-pop-hint">Naira is always shown. Update a rate whenever it changes.</small>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Rendered by renderCurrencyBalances() in dashboard.js -->
+                    <ul class="currency-list" id="currency-list"></ul>
+                </section>
+
+                <!-- CARD 6: CASH FLOW -->
+                <section class="board-card">
+                    <div class="card-header">
+                        <h3>Cash Flow</h3>
+        
+                    </div>
+                    <div class="card-subtitle">
+                        <div>
+                            <small>This month</small>
+                            <strong>-NGN 3,300.00</strong>
+                        </div>
+                        <div class="vs-block">
+                            <small class="vs-label">VS Previous Period</small>
+                            <span class="badge down" id="cashflow-vs-badge">0%</span>
+                        </div>
+                    </div>
+                    <div class="cashflow-row">
+                        <div class="cf-label"><span>Income</span><strong id="income-amount">NGN 14,000.00</strong></div>
+                        <div class="progress-track"><div class="progress-fill green" style="width: 45%"></div></div>
+                    </div>
+                    <div class="cashflow-row">
+                        <div class="cf-label"><span>Expense</span><strong>-NGN 17,300.00</strong></div>
+                        <div class="progress-track"><div class="progress-fill red" style="width: 55%"></div></div>
+                    </div>
+                </section>
+
+            </main>
+
+        </div>
+    </div>
+
+    <!-- ACCOUNTS PAGE: list + account detail (filled in by accounts-page.js) -->
+    <div class="accounts-page" id="view-accounts"></div>
+
+    <!-- RECORDS PAGE (filled in by records-page.js) -->
+    <div class="accounts-page" id="view-records"></div>
+
+    <!-- ANALYTICS PAGE (filled in by analytics-page.js) -->
+    <div class="accounts-page" id="view-analytics"></div>
+
+    <!-- SETTINGS PAGE (filled in by settings-page.js) -->
+    <div class="accounts-page" id="view-settings"></div>
+
+    <!-- RECORD MODAL -->
+    <div id="record-modal" class="modal">
+        <div class="modal-overlay" id="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2 id="record-modal-title">Add New Record</h2>
+                    <p id="record-modal-subtitle">Fill in the details of your income or expense</p>
+                </div>
+                <button class="modal-close" id="close-modal-btn">&times;</button>
+            </div>
+            <form id="transaction-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="amount">Amount (₦)</label>
+                        <input type="number" id="amount" placeholder="e.g., 10000" min="0" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="type">Type</label>
+                        <select id="type" required>
+                            <option value="" disabled selected>Select type</option>
+                            <option value="income">Income</option>
+                            <option value="expense">Expense</option>
+                            <option value="transfer">Transfer</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" id="category-wrap">
+                        <label for="category">Category</label>
+                        <select id="category" required>
+                            <option value="" disabled selected>Select category</option>
+                            <option value="salary">Salary</option>
+                            <option value="food">Food & Drinks</option>
+                            <option value="transport">Transport</option>
+                            <option value="data">Data</option>
+                            <option value="entertainment">Entertainment</option>
+                            <option value="shopping">Shopping</option>
+                            <option value="groceries">Groceries</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="account-single-wrap">
+                        <label for="account">Account</label>
+                        <select id="account" required>
+                            <option value="" disabled selected>Select account</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Account 1">Account 1</option>
+                            <option value="Account 2">Account 2</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- Transfer row (shown only when Type = Transfer) -->
+                <div class="form-row" id="transfer-row" style="display:none;">
+                    <div class="form-group">
+                        <label for="transfer-from">From Account</label>
+                        <select id="transfer-from"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="transfer-to">To Account</label>
+                        <select id="transfer-to"></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="date">Date & Time</label>
+                    <input type="datetime-local" id="date" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" id="cancel-btn">Cancel</button>
+                    <button type="submit" class="btn-add" id="record-submit-btn">+ Add Record</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ADD ACCOUNT MODAL - replaces prompt -->
+    <div id="account-modal" class="modal">
+        <div class="modal-overlay" id="account-modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2>Add New Account</h2>
+                    <p>Create a new wallet to track separately</p>
+                </div>
+                <button class="modal-close" id="close-account-modal-btn">&times;</button>
+            </div>
+            <form id="account-form" autocomplete="off">
+                <div class="af-row">
+                    <div class="form-group af-grow">
+                        <label for="new-account-name">Name <span class="af-req">*</span></label>
+                        <input type="text" id="new-account-name" class="af-input" placeholder="Account name" maxlength="20" required>
+                    </div>
+                    <div class="form-group af-side">
+                        <label>Color</label>
+                        <div class="cp-anchor">
+                            <button type="button" class="cp-field" id="cp-field" aria-haspopup="true" aria-expanded="false">
+                                <span class="cp-swatch" id="cp-swatch"></span>
+                                <span class="cp-label" id="cp-label">#2EC4B6</span>
+                            </button>
+                            <div class="cp-pop" id="cp-pop" hidden>
+                                <div class="cp" id="color-picker">
+                                    <div class="cp-sv" id="cp-sv"><div class="cp-handle" id="cp-sv-handle"></div></div>
+                                    <div class="cp-hue" id="cp-hue"><div class="cp-handle" id="cp-hue-handle"></div></div>
+                                    <div class="cp-readout">
+                                        <input type="text" id="cp-hex" maxlength="7" spellcheck="false" aria-label="Colour code">
+                                    </div>
+                                    <div class="cp-presets" id="cp-presets"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Account type</label>
+                    <div id="type-select"></div>
+                    <input type="hidden" id="new-account-type" value="general">
+                </div>
+
+                <div class="af-row">
+                    <div class="form-group af-grow">
+                        <label for="new-account-opening" id="opening-label">Initial Amount</label>
+                        <input type="number" id="new-account-opening" class="af-input" placeholder="0" min="0" step="0.01">
+                    </div>
+                    <div class="form-group af-side">
+                        <label>Currency</label>
+                        <div id="currency-select"></div>
+                        <input type="hidden" id="new-account-currency" value="NGN">
+                    </div>
+                </div>
+
+                <!-- Only shown for non-naira currencies: converts the opening money to NGN (main currency) -->
+                <div class="form-group" id="rate-group" hidden>
+                    <label for="new-account-rate">Exchange rate</label>
+                    <div class="af-rate">
+                        <span class="af-rate-text" id="rate-prefix">1 USD =</span>
+                        <input type="number" id="new-account-rate" class="af-input" min="0" step="any" placeholder="0">
+                        <span class="af-rate-text">NGN</span>
+                    </div>
+                    <small class="af-hint" id="rate-preview"></small>
+                </div>
+
+                <label class="af-switch" for="new-account-exclude">
+                    <input type="checkbox" id="new-account-exclude">
+                    <span class="af-track"></span>
+                    <span class="af-switch-text">Exclude from statistics</span>
+                    <span class="af-info" tabindex="0" role="note" data-tip="Hidden from the dashboard totals and charts while viewing All accounts. Its balance still shows in the sidebar.">i</span>
+                </label>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" id="cancel-account-btn">Cancel</button>
+                    <button type="submit" class="btn-add" id="create-account-btn" disabled>Create account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CONFIRM MODAL - replaces native confirm() with Qionix popup -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-overlay" id="confirm-modal-overlay"></div>
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <div>
+                    <h2 id="confirm-title">Are you sure?</h2>
+                    <p id="confirm-message">This cannot be undone.</p>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" id="confirm-cancel-btn">Cancel</button>
+                <button type="button" class="btn-danger" id="confirm-yes-btn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST - small popup replacing native alert() -->
+    <div id="toast" class="toast"></div>
+
+    <!-- JS split by feature (order matters: main.js LAST, it runs init) -->
+    <script src="calendar.js"></script>
+    <script src="transactions.js"></script>
+    <script src="dashboard.js"></script>
+    <script src="charts.js"></script>
+    <script src="main.js"></script>
+    <script src="vendor/mono-connect.js"></script>
+    <script src="mono-connect.js"></script>
+    <script src="records-page.js"></script>
+    <script src="analytics-page.js"></script>
+    <script src="settings-page.js"></script>
+    <script src="accounts-page.js"></script>
+</body>
+</html>

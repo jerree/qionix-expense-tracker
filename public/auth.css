@@ -1,0 +1,478 @@
+/* =========================================================
+   QIONIX AUTH - login / sign up page (standalone)
+   Same wine brand + dark theme tokens as the main app,
+   but a self-contained stylesheet so it never clashes.
+   ========================================================= */
+
+:root {
+    --color-primary: #9d174d;
+    --color-primary-hover: #831843;
+    --color-primary-light: #fce7f3;
+
+    --color-bg: #eef2f5;
+    --color-card: #ffffff;
+
+    --color-text: #2c3e50;
+    --color-text-soft: #5a6b7a;
+    --color-text-muted: #5d6d7d;
+
+    --color-border-card: #e6ecef;
+    --color-border-input: #d0d8de;
+
+    --color-expense: #e74c3c;
+    --color-expense-bg: #fdecea;
+
+    --auth-tabs-bg: #f1f4f7;
+    --auth-field-bg: #f8fafb;
+    --auth-link: #9d174d;
+    --font-main: "Segoe UI", Arial, Helvetica, sans-serif;
+}
+
+html[data-theme="dark"] {
+    --color-primary: #8a142f;
+    --color-primary-hover: #720f26;
+    --color-primary-light: rgba(138, 20, 47, 0.30);
+
+    --color-bg: #101216;
+    --color-card: #1a1d22;
+
+    --color-text: #e7eaee;
+    --color-text-soft: #b4bcc6;
+    --color-text-muted: #8d97a3;
+
+    --color-border-card: #282d34;
+    --color-border-input: #3a4149;
+
+    --color-expense: #e74c3c;
+    --color-expense-bg: rgba(231, 76, 60, 0.15);
+
+    --auth-tabs-bg: #101216;
+    --auth-field-bg: #15181d;
+    --auth-link: #e08aa5;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    min-height: 100vh;
+    font-family: var(--font-main);
+    font-size: 14px;
+    line-height: 1.5;
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+/* =========================================================
+   LAYOUT: brand panel + form panel
+   ========================================================= */
+.auth-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    min-height: 100vh;
+}
+
+/* ---- left: brand ---- */
+.auth-brand {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 44px 52px 32px;
+    color: #ffffff;
+    background:
+        radial-gradient(900px 560px at 88% -12%, rgba(255, 255, 255, 0.16), transparent 62%),
+        radial-gradient(700px 460px at -12% 112%, rgba(255, 255, 255, 0.10), transparent 60%),
+        linear-gradient(158deg, #8a142f 0%, #64102a 46%, #3d0816 100%);
+}
+
+/* faint chain-link mesh - the only place the pattern remains */
+.auth-brand::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(45deg, transparent calc(50% - 0.7px), rgba(255, 255, 255, 0.05) 50%, transparent calc(50% + 0.7px)),
+        linear-gradient(-45deg, transparent calc(50% - 0.7px), rgba(255, 255, 255, 0.05) 50%, transparent calc(50% + 0.7px));
+    background-size: 30px 30px;
+}
+
+.auth-brand-inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+    max-width: 460px;
+}
+
+.auth-badge {
+    width: 54px;
+    height: 54px;
+    border-radius: 16px;
+    background: #ffffff;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.auth-badge-img {
+    width: 34px;
+    height: 34px;
+}
+
+.auth-eyebrow {
+    display: block;
+    margin-bottom: 16px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.62);
+}
+
+.auth-brand-copy h1 {
+    font-size: 42px;
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    font-weight: 800;
+}
+
+.auth-brand-copy p {
+    max-width: 380px;
+    margin-top: 16px;
+    font-size: 15px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.auth-points {
+    list-style: none;
+    display: grid;
+    gap: 12px;
+    margin-top: 30px;
+}
+
+.auth-points li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.86);
+}
+
+.auth-points li::before {
+    content: "✓";
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.auth-brand-foot {
+    position: relative;
+    z-index: 1;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.50);
+}
+
+/* ---- right: form ---- */
+.auth-panel {
+    display: grid;
+    place-items: center;
+    padding: 40px 24px;
+    background-color: var(--color-bg);
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+    padding: 32px;
+    background: var(--color-card);
+    border: 1px solid var(--color-border-card);
+    border-radius: 20px;
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+}
+
+html[data-theme="dark"] .auth-card {
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+
+.auth-mini {
+    display: none;
+}
+
+.auth-head h2 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.auth-head p {
+    margin-top: 6px;
+    font-size: 14px;
+    color: var(--color-text-muted);
+}
+
+/* ---- log in / sign up tabs ---- */
+.auth-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin: 22px 0 20px;
+    padding: 4px;
+    background: var(--auth-tabs-bg);
+    border-radius: 12px;
+}
+
+.auth-tabs button {
+    padding: 9px 10px;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--color-text-muted);
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.auth-tabs button.on {
+    background: var(--color-card);
+    color: var(--color-primary);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.14);
+}
+
+html[data-theme="dark"] .auth-tabs button.on {
+    color: #ffffff;
+}
+
+/* ---- fields ---- */
+.auth-field {
+    margin-bottom: 14px;
+}
+
+.auth-field label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--color-text-soft);
+}
+
+.auth-field input {
+    width: 100%;
+    height: 46px;
+    padding: 0 14px;
+    border: 1px solid var(--color-border-input);
+    border-radius: 12px;
+    background: var(--auth-field-bg);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 14.5px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.auth-field input::placeholder {
+    color: var(--color-text-muted);
+    opacity: 0.7;
+}
+
+.auth-field input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+/* Deep wine is too close to the error red on dark: use a soft rose ring */
+html[data-theme="dark"] .auth-field input:focus {
+    border-color: #b05775;
+    box-shadow: 0 0 0 3px rgba(224, 138, 165, 0.18);
+}
+
+.auth-field.invalid input {
+    border-color: var(--color-expense);
+}
+
+.auth-field.invalid input:focus {
+    box-shadow: 0 0 0 3px var(--color-expense-bg);
+}
+
+.auth-error {
+    margin-top: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-expense);
+}
+
+.auth-pass-wrap {
+    position: relative;
+}
+
+.auth-pass-wrap input {
+    padding-right: 68px;
+}
+
+.auth-eye {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    transform: translateY(-50%);
+    padding: 6px 10px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--color-text-muted);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.auth-eye:hover {
+    color: var(--color-primary);
+    background: var(--auth-tabs-bg);
+}
+
+.auth-form-error {
+    margin: 2px 0 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--color-expense-bg);
+    color: var(--color-expense);
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+/* ---- submit + footer links ---- */
+.auth-submit {
+    width: 100%;
+    height: 46px;
+    border: none;
+    border-radius: 12px;
+    background: var(--color-primary);
+    color: #ffffff;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.05s;
+}
+
+.auth-submit:hover {
+    background: var(--color-primary-hover);
+}
+
+.auth-submit:active {
+    transform: translateY(1px);
+}
+
+.auth-submit:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+.auth-submit:focus-visible,
+.auth-tabs button:focus-visible,
+.auth-eye:focus-visible,
+.auth-switch button:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+.auth-switch {
+    margin-top: 18px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--color-text-muted);
+}
+
+.auth-switch button {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--auth-link);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.auth-switch button:hover {
+    text-decoration: underline;
+}
+
+.auth-legal {
+    margin-top: 14px;
+    text-align: center;
+    font-size: 11.5px;
+    color: var(--color-text-muted);
+}
+
+/* A small shake when the form has errors */
+@keyframes auth-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.auth-card.shake {
+    animation: auth-shake 0.25s ease-in-out;
+}
+
+/* =========================================================
+   SMALL SCREENS - drop the brand panel, keep the form
+   ========================================================= */
+@media (max-width: 960px) {
+    .auth-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-brand {
+        display: none;
+    }
+
+    .auth-panel {
+        padding: 32px 18px;
+    }
+
+    .auth-card {
+        padding: 28px 24px;
+    }
+
+    .auth-mini {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 22px;
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--color-text);
+    }
+
+    .auth-mini img {
+        width: 30px;
+        height: 30px;
+    }
+}
+
+@media (max-width: 420px) {
+    .auth-card {
+        padding: 24px 18px;
+        border-radius: 16px;
+    }
+}
