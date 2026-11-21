@@ -156,6 +156,65 @@ let accounts = [
 function openingNGN(acc) {
     return (Number(acc.opening) || 0) * (Number(acc.rate) || 1);
 }
+
+// How one record moves a specific account's balance (+ in, - out)
+function accountDeltaFor(acc, t) {
+    if (t.type === "transfer") {
+        let delta = 0;
+        if (t.from === acc.name) delta -= t.amount;
+        if (t.to === acc.name) delta += t.amount;
+        return delta;
+    }
+    if (t.account !== acc.name) return 0;
+    if (t.type === "income") return t.amount;
+    if (t.type === "expense") return -t.amount;
+    return 0;
+}
+
+// Current account balance, independent of the dashboard's period filter.
+// cutoff is a timestamp; omit it to count everything up to the end of today.
+function accountBalanceAt(acc, cutoff) {
+    const end = typeof cutoff === "number" ? cutoff : endOfDay(new Date()).getTime();
+    let balance = openingNGN(acc);
+    for (let i = 0; i < transactions.length; i++) {
+        const t = transactions[i];
+        const time = new Date(t.date).getTime();
+        if (!isFinite(time) || time > end) continue;
+        balance += accountDeltaFor(acc, t);
+    }
+    return balance;
+}
+
+// Total of the accounts currently in scope (one selected account, or all non-excluded accounts).
+function balanceInScopeAt(cutoff) {
+    let total = 0;
+    for (let i = 0; i < accounts.length; i++) {
+        const acc = accounts[i];
+        const inScope = selectedAccount ? acc.name === selectedAccount : !acc.excluded;
+        if (inScope) total += accountBalanceAt(acc, cutoff);
+    }
+    return total;
+}
+
+// How one record changes the balance of the current scope (used by the trend chart).
+function balanceDeltaInScope(t) {
+    if (selectedAccount) {
+        if (t.type === "transfer") {
+            if (t.from === selectedAccount) return -t.amount;
+            if (t.to === selectedAccount) return t.amount;
+            return 0;
+        }
+        if (t.account !== selectedAccount) return 0;
+        return t.type === "income" ? t.amount : (t.type === "expense" ? -t.amount : 0);
+    }
+    if (t.type === "transfer") {
+        const fromCounts = !isAccountExcluded(t.from);
+        const toCounts = !isAccountExcluded(t.to);
+        return (toCounts ? t.amount : 0) - (fromCounts ? t.amount : 0);
+    }
+    if (isAccountExcluded(t.account)) return 0;
+    return t.type === "income" ? t.amount : (t.type === "expense" ? -t.amount : 0);
+}
 // Starting suggestions only - the user edits the rate in the form
 const DEFAULT_RATES = { USD: 1500, EUR: 1650, GBP: 1950, GHS: 100, KES: 11.6 };
 

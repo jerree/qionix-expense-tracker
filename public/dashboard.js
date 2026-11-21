@@ -65,8 +65,9 @@ function updateDashboard() {
         }
     }
 
-    // Balance includes opening capital + net flow
-    const balance = openingsInScope() + totalIncome - totalExpenses;
+    // Current balance across accounts (all history), separate from this period's net flow.
+    const balance = balanceInScopeAt();
+    const periodNet = totalIncome - totalExpenses;
 
     // Find dashboard elements (keep old IDs for JS)
     const balanceEl = document.getElementById("balance-amount");
@@ -78,8 +79,11 @@ function updateDashboard() {
     const cashFlowAmount = document.querySelector(".cashflow-row + .cashflow-row .cf-label strong");
     // Actually cashFlow total is balance, update both cashflow rows
 
-    // Helper to format: 27600 -> 27.6K or 27,600
+    // Helper to format: 27600 -> 27.6K, 1485000 -> 1.5M
     function formatShort(num) {
+        if (Math.abs(num) >= 1000000) {
+            return (num / 1000000).toFixed(1) + "M";
+        }
         if (Math.abs(num) >= 1000) {
             return (num / 1000).toFixed(1) + "K";
         }
@@ -94,8 +98,8 @@ function updateDashboard() {
     const cashflowEl = document.getElementById("cashflow-amount");
     if (balanceEl) balanceEl.textContent = formatShort(balance);
     if (incomeEl) incomeEl.textContent = formatFull(totalIncome);
-    if (expenseEl) expenseEl.textContent = formatShort(-totalExpenses); // spending shows negative
-    if (cashflowEl) cashflowEl.textContent = formatShort(balance); // cash flow = same as balance for now
+    if (expenseEl) expenseEl.textContent = formatShort(totalExpenses);
+    if (cashflowEl) cashflowEl.textContent = formatShort(periodNet);
     if (fullBalanceEl) fullBalanceEl.textContent = formatFull(balance);
 
     // Quick stats row under the gauges (same period + account filter as everything else)
@@ -128,12 +132,12 @@ function updateDashboard() {
     const cashFlowRows = document.querySelectorAll(".cashflow-row .cf-label strong");
     if (cashFlowRows.length >= 2) {
         // First row already incomeEl, second is expense
-        cashFlowRows[1].textContent = "-NGN " + Number(totalExpenses).toLocaleString() + ".00";
+        cashFlowRows[1].textContent = "NGN " + Number(totalExpenses).toLocaleString() + ".00";
     }
-    // Update the main Cash Flow balance (-NGN 3,300)
+    // Cash Flow total = income - expenses for the selected period
     const cashFlowBalance = document.querySelector(".board-card:nth-child(6) .card-subtitle strong");
     if (cashFlowBalance) {
-        cashFlowBalance.textContent = formatFull(balance);
+        cashFlowBalance.textContent = formatFull(periodNet);
     }
 
     // Move gauge needles - fixed scale so small money stays left
@@ -244,25 +248,11 @@ function updateDashboard() {
     if (needleCashflow) needleCashflow.style.transform = "translateX(-50%) rotate(" + cashFlowAngle + "deg)";
     if (needleSpending) needleSpending.style.transform = "translateX(-50%) rotate(" + spendingAngle + "deg)";
 
-    // Update accounts sidebar per account: opening + income - expenses + transfers
+    // Update accounts sidebar per account. These are current balances, so they
+    // must not change when the dashboard's period filter changes.
     const accountCards = document.querySelectorAll(".accounts-sidebar .account-card:not(.add-account)");
-    // Real balances: every account (even excluded ones), same period filter
-    const visibleAll = getVisibleTransactions(true);
     for (let a = 0; a < accounts.length; a++) {
-        let accBalance = openingNGN(accounts[a]); // always NGN
-        for (let i = 0; i < visibleAll.length; i++) {
-            const t = visibleAll[i];
-            if (t.type === "transfer") {
-                if (t.from === accounts[a].name) accBalance = accBalance - t.amount;
-                if (t.to === accounts[a].name) accBalance = accBalance + t.amount;
-            } else if (t.account === accounts[a].name) {
-                if (t.type === "income") {
-                    accBalance = accBalance + t.amount;
-                } else if (t.type === "expense") {
-                    accBalance = accBalance - t.amount;
-                }
-            }
-        }
+        const accBalance = accountBalanceAt(accounts[a]); // always NGN
         // Card order matches accounts order, update its <strong>
         if (accountCards[a]) {
             const strong = accountCards[a].querySelector("strong");

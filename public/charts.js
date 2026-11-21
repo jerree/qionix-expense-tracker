@@ -160,7 +160,7 @@ function updateExpensesStructure(totalExpenses) {
     // 2. Update total text
     if (totalEl) {
         if (totalExpenses === 0) totalEl.textContent = "NGN 0.00";
-        else totalEl.textContent = "-NGN " + Number(totalExpenses).toLocaleString() + ".00";
+        else totalEl.textContent = "NGN " + Number(totalExpenses).toLocaleString() + ".00";
     }
 
     // 3. Empty case
@@ -241,24 +241,13 @@ function updateBalanceTrend(balance) {
         return d.getDate() + " " + monthNames[d.getMonth()];
     };
     if (sorted.length === 0) {
-        // Opening carried from history before the viewed range (openings + prior net, account-aware)
+        // Balance carried into the viewed range from earlier transactions.
         const rg0 = getActiveRange();
-        let opening0 = openingsInScope();
-        if (rg0) {
-            for (let i = 0; i < transactions.length; i++) {
-                const t = transactions[i];
-                if (!inSelectedAccount(t)) continue;
-                if (new Date(t.date) < rg0.start) {
-                    if (t.type === "income") opening0 = opening0 + t.amount;
-                    else if (t.type === "expense") opening0 = opening0 - t.amount;
-                }
-            }
-        }
-        const y0 = opening0 === 0 ? 80 : 80 - 40;
-        trendPoints = [{ x: 0, y: 80, value: opening0, date: "Start" }, { x: 300, y: 80, value: opening0, date: "Now" }];
-        // Flat at opening level (map opening into view; empty view min=max=opening so y=80 when 0 handled above)
-        svgPath.setAttribute("d", "M0,80 L300,80");
-        svgArea.setAttribute("d", "M0,80 L300,80 L300,80 L0,80 Z");
+        const opening0 = rg0 ? balanceInScopeAt(rg0.start.getTime() - 1) : balanceInScopeAt();
+        const flatY = opening0 === 0 ? 80 : 40;
+        trendPoints = [{ x: 0, y: flatY, value: opening0, date: "Start" }, { x: 300, y: flatY, value: opening0, date: "Now" }];
+        svgPath.setAttribute("d", "M0," + flatY + " L300," + flatY);
+        svgArea.setAttribute("d", "M0," + flatY + " L300," + flatY + " L300,80 L0,80 Z");
         // Labels follow selected range (or current month when All+no data at all)
         let labStart, labEnd;
         if (rg0) {
@@ -287,29 +276,7 @@ function updateBalanceTrend(balance) {
         return;
     }
 
-    // 3. Cumulative balance after each transaction (transfers net zero, skip)
-    let running = 0;
-    const balances = [];
-    for (let i = 0; i < sorted.length; i++) {
-        if (sorted[i].type === "income") running = running + sorted[i].amount;
-        else if (sorted[i].type === "expense") running = running - sorted[i].amount;
-        balances.push(running);
-    }
-
-    // 4. Scale Y: max balance -> top (y=0), min -> bottom (y=80) so it touches grid
-    let maxVal = balances[0];
-    let minVal = balances[0];
-    for (let i = 1; i < balances.length; i++) {
-        if (balances[i] > maxVal) maxVal = balances[i];
-        if (balances[i] < minVal) minVal = balances[i];
-    }
-    // Include 0 in range so line doesn't fly
-    if (minVal > 0) minVal = 0;
-    if (maxVal < 0) maxVal = 0;
-    let range = maxVal - minVal;
-    if (range === 0) range = 1;
-
-    // 5. Range-based daily line so week/day/custom work (graph was month-locked before)
+    // 3. Range-based daily line so week/day/custom work (graph was month-locked before)
     // X spans the selected range (week = 7 days, day = intraday jump, month = days, year/All = buckets).
     // One point per day (net close). Tooltip lists every record that day + day high.
     const rg = getActiveRange();
@@ -343,22 +310,14 @@ function updateBalanceTrend(balance) {
     const dayX = function (idx) {
         return nDays === 1 ? 300 : (idx / (nDays - 1)) * 300;
     };
-    // Opening balance before range start: openings + prior net (transfers don't change total)
-    let opening = openingsInScope();
-    for (let i = 0; i < transactions.length; i++) {
-        const t = transactions[i];
-        if (!inSelectedAccount(t)) continue;
-        if (new Date(t.date) < rangeStart) {
-            if (t.type === "income") opening = opening + t.amount;
-            else if (t.type === "expense") opening = opening - t.amount;
-        }
-    }
+    // Opening balance before the range starts, from real account history.
+    const opening = balanceInScopeAt(rangeStart.getTime() - 1);
     // Buckets: 1 point per day (single-day range gets opening + close so jump shows)
     const closes = [];
     const details = [];
     let runningDay = opening;
-    maxVal = opening;
-    minVal = opening;
+    let maxVal = opening;
+    let minVal = opening;
     // Single-day range: two points (opening at x=0, close at x=300)
     const singleDay = (nDays === 1);
     const iterDays = singleDay ? 1 : nDays;
@@ -371,8 +330,7 @@ function updateBalanceTrend(balance) {
             const d = new Date(sorted[i].date);
             if (d.getFullYear() === cur.getFullYear() && d.getMonth() === cur.getMonth() && d.getDate() === cur.getDate()) {
                 list.push(sorted[i]);
-                if (sorted[i].type === "income") runningDay = runningDay + sorted[i].amount;
-                else if (sorted[i].type === "expense") runningDay = runningDay - sorted[i].amount;
+                runningDay = runningDay + balanceDeltaInScope(sorted[i]);
                 if (runningDay > dayHigh) dayHigh = runningDay;
                 if (runningDay < dayLow) dayLow = runningDay;
             }
@@ -386,7 +344,7 @@ function updateBalanceTrend(balance) {
     }
     if (minVal > 0) minVal = 0;
     if (maxVal < 0) maxVal = 0;
-    range = maxVal - minVal;
+    let range = maxVal - minVal;
     if (range === 0) range = 1;
     const yFor = function (bal) {
         return 80 - ((bal - minVal) / range) * 80;
@@ -432,13 +390,12 @@ function updateBalanceTrend(balance) {
     if (yAxis.length >= 5) {
         const step = (maxVal - minVal) / 4;
         const formatY = function (v) {
-            if (Math.abs(v) >= 1000) {
-                const k = v / 1000;
-                // Keep 1 decimal only if needed (7.5K not 7.50K, 10K not 10.0K)
-                const rounded = Math.round(k * 10) / 10;
-                return (rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)) + "K";
-            }
-            return "" + Math.round(v);
+            const abs = Math.abs(v);
+            const unit = abs >= 1000000 ? 1000000 : (abs >= 1000 ? 1000 : 1);
+            const scaled = v / unit;
+            const rounded = Math.round(scaled * 10) / 10;
+            const suffix = unit === 1000000 ? "M" : (unit === 1000 ? "K" : "");
+            return (rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)) + suffix;
         };
         yAxis[0].textContent = formatY(maxVal);
         yAxis[1].textContent = formatY(maxVal - step);
